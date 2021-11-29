@@ -42,6 +42,10 @@ class OpenGraph:
         else:
             doc = html
 
+        # Not a lot we can do if there's no HTML
+        if doc.html is None:
+            return
+
         if doc.html.head is not None:
             ogs = doc.html.head.findAll(property=re.compile(r"^og"))
             for og in ogs:
