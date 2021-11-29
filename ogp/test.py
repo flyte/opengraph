@@ -68,6 +68,18 @@ class test(unittest.TestCase):
             og.items["image"], "http://www.crummy.com/software/BeautifulSoup/bs3/6.1.jpg"
         )
 
+    def test_missing_head(self):
+        og = OpenGraph(html="<html><body></body></html>", scrape=True)
+        self.assertEqual(og.items["title"], None)
+
+    def test_missing_body(self):
+        og = OpenGraph(html="<html><head></head></html>", scrape=True)
+        self.assertEqual(og.items["title"], None)
+
+    def test_missing_head_and_body(self):
+        og = OpenGraph(html="<html></html>", scrape=True)
+        self.assertEqual(og.items["title"], None)
+
 
 if __name__ == "__main__":
     unittest.main()

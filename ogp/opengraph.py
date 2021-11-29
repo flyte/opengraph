@@ -2,6 +2,7 @@
 
 import re
 from contextlib import closing
+from typing import Any, Dict, Iterable, Optional, Set, Union
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
@@ -9,41 +10,43 @@ from bs4 import BeautifulSoup
 
 
 class OpenGraph:
-    scrape = False
+    scrape: bool = False
 
     def __init__(
         self,
-        url="http://example.com",
-        html=None,
-        scrape=False,
-        required_attrs=set(("title", "type", "image", "url")),
-        **kwargs,
+        url: str = "http://example.com",
+        html: Optional[str] = None,
+        scrape: bool = False,
+        required_attrs: Iterable[str] = set(("title", "type", "image", "url")),
+        **kwargs: Any,
     ):
         # If scrape == True, then will try to fetch missing attribtues
         # from the page's body
         self.scrape = scrape
         self.url = url
-        self.items = {}
-        self.required_attrs = set(required_attrs)
+        self.items: Dict[str, Optional[str]] = {}
+        self.required_attrs: Set[str] = set(required_attrs)
 
         if not html:
             with closing(urlopen(url, **kwargs)) as raw:
                 html = raw.read()
 
-        self.parser(html)
+        self.parse(html)
 
-    def absolute(self, url):
+    def absolute(self, url: str) -> str:
         return urljoin(self.url, url)
 
-    def parser(self, html):
+    def parse(self, html: Union[str, BeautifulSoup]) -> None:
         if not isinstance(html, BeautifulSoup):
             doc = BeautifulSoup(html, features="html.parser")
         else:
             doc = html
-        ogs = doc.html.head.findAll(property=re.compile(r"^og"))
-        for og in ogs:
-            if og.has_attr("content"):
-                self.items[og["property"][3:]] = og["content"]
+
+        if doc.html.head is not None:
+            ogs = doc.html.head.findAll(property=re.compile(r"^og"))
+            for og in ogs:
+                if og.has_attr("content"):
+                    self.items[og["property"][3:]] = og["content"]
 
         # Couldn't fetch all attrs from og tags, try scraping body
         if self.scrape:
@@ -55,10 +58,10 @@ class OpenGraph:
         if image:
             self.items["image"] = self.absolute(self.items["image"])
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return self.required_attrs <= set(self.items.keys())
 
-    def to_html(self):
+    def to_html(self) -> str:
         if not self.is_valid():
             return '<meta property="og:error" content="og metadata is not valid" />'
 
@@ -69,24 +72,32 @@ class OpenGraph:
 
         return meta
 
-    def scrape_image(self, doc):
+    def scrape_image(self, doc: BeautifulSoup) -> Optional[str]:
+        if doc.html.body is None:
+            return None
         images = [dict(img.attrs)["src"] for img in doc.html.body.findAll("img")]
 
         if images:
             return images[0]
 
-        return ""
+        return None
 
-    def scrape_title(self, doc):
+    def scrape_title(self, doc: BeautifulSoup) -> Optional[str]:
+        if doc.html.head is None:
+            return None
+        if doc.html.head.title is None:
+            return None
         return doc.html.head.title.text
 
-    def scrape_type(self, doc):
+    def scrape_type(self, _: BeautifulSoup) -> str:
         return "other"
 
-    def scrape_url(self, doc):
+    def scrape_url(self, _: BeautifulSoup) -> str:
         return self.url
 
-    def scrape_description(self, doc):
+    def scrape_description(self, doc: BeautifulSoup) -> Optional[str]:
+        if doc.html.head is None:
+            return None
         ogs = doc.html.head.findAll(
             name="meta",
             attrs={"name": ("description", "DC.description", "eprints.abstract")},

@@ -31,5 +31,8 @@ setup(
     packages=[
         "ogp",
     ],
+    package_data={
+        "ogp": ["py.typed"],
+    },
     install_requires=["beautifulsoup4"],
 )
